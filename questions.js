@@ -2288,12 +2288,13 @@ const quizzesData = [
       }
     ]
   },
-{
+  {
     id: "strategies-sensitivity",
     title: "Quiz 5: Language Strategies & Sensitivity",
     description: "Master indexing generalizations, similes and metaphors, vivid word choice, and respecting listeners through linguistic sensitivity.",
     timeLimit: 240, // 4 minutes
     // Updated Quiz 5 questions - Listening Quiz
+    questions: [
         {
           question: "A patient sits in a clinic while the doctor explains the results of a recent blood test. The patient listens carefully not only to the medical terms but also closely observes the doctor's tone of voice and facial expressions to gauge if the news is bad. Which type of listening is the patient primarily engaging in?",
           options: [
@@ -2843,10 +2844,8 @@ const quizzesData = [
           ],
           answer: 2,
           explanation: `الانتباه (Attending) هو عملية عقلية نختار فيها بوعي التركيز على رسالة معينة (صوت المتحدث) مع تصفية وتجاهل جميع المشتتات المحيطة (الضوضاء أو الأفكار الداخلية).`
-        }
+        },
         // End of new questions
-
-      
     ]
   }
 ];

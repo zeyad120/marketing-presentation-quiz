@@ -3,8 +3,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentQuiz = null;
   let currentQuestionIndex = 0;
   let userAnswers = []; // Stores the selected option index for each question
-  let timeLeft = 0;
-  let timerInterval = null;
   let isAnswerSubmitted = false;
 
   // DOM Elements
@@ -15,12 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const logoHomeBtn = document.getElementById('logo-home-btn');
   const homeNavBtn = document.getElementById('home-nav-btn');
   const quizzesGrid = document.getElementById('quizzes-grid');
+  const themeToggleBtn = document.getElementById('theme-toggle-btn');
   
   // Quiz DOM Elements
   const currentQuizTitle = document.getElementById('current-quiz-title');
   const quizProgressText = document.getElementById('quiz-progress-text');
-  const timerDisplay = document.getElementById('timer-display');
-  const quizTimerContainer = document.getElementById('quiz-timer');
   const quizProgressFill = document.getElementById('quiz-progress-fill');
   const questionText = document.getElementById('question-text');
   const optionsContainer = document.getElementById('options-container');
@@ -43,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize App
   function init() {
+    initializeTheme();
     renderQuizGrid();
     setupEventListeners();
     // Auto-start quiz if URL contains ?quiz=ID
@@ -64,6 +62,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Quiz Actions
     nextQuestionBtn.addEventListener('click', handleNextButton);
     retryQuizBtn.addEventListener('click', restartCurrentQuiz);
+    
+    // Theme Toggle
+    themeToggleBtn.addEventListener('click', toggleTheme);
   }
 
   // View Navigation Helper
@@ -100,9 +101,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.quizzesData.forEach((quiz, index) => {
       const qNum = String(index + 1).padStart(2, '0');
-      const minutes = Math.floor(quiz.timeLimit / 60);
-      const seconds = quiz.timeLimit % 60;
-      const formattedTime = `${minutes}m ${seconds > 0 ? seconds + 's' : ''}`;
+      const result = getQuizResult(quiz.id);
+
+      let resultHtml = '';
+      if (result) {
+        const scoreClass = result.scorePercent >= 80 ? 'high' : result.scorePercent >= 50 ? 'medium' : 'low';
+        resultHtml = `
+          <div class="quiz-result-badge ${scoreClass}">
+            <span class="result-score">${result.scorePercent}%</span>
+            <span class="result-label">Completed</span>
+          </div>
+        `;
+      }
 
       const card = document.createElement('div');
       card.className = 'quiz-card';
@@ -111,19 +121,16 @@ document.addEventListener('DOMContentLoaded', () => {
           <span class="quiz-number">Quiz ${qNum}</span>
           <div class="quiz-meta">
             <span class="quiz-meta-item">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              ${formattedTime}
-            </span>
-            <span class="quiz-meta-item">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
               ${quiz.questions.length} Questions
             </span>
           </div>
         </div>
+        ${resultHtml}
         <h3>${quiz.title}</h3>
         <p>${quiz.description}</p>
         <button class="btn start-quiz-btn" data-id="${quiz.id}">
-          Start Quiz
+          ${result ? 'Retake Quiz' : 'Start Quiz'}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
         </button>
       `;
@@ -148,52 +155,14 @@ document.addEventListener('DOMContentLoaded', () => {
     currentQuestionIndex = 0;
     userAnswers = [];
     isAnswerSubmitted = false;
-    timeLeft = currentQuiz.timeLimit;
 
     // Reset UI states
     currentQuizTitle.textContent = currentQuiz.title;
-    quizTimerContainer.classList.remove('warning');
     
     switchView('quiz');
     renderQuestion();
-    startTimer();
   }
 
-  // Timer Implementation
-  function startTimer() {
-    clearInterval(timerInterval);
-    updateTimerDisplay();
-
-    timerInterval = setInterval(() => {
-      timeLeft--;
-      updateTimerDisplay();
-
-      if (timeLeft <= 30) {
-        quizTimerContainer.classList.add('warning');
-      }
-
-      if (timeLeft <= 0) {
-        clearInterval(timerInterval);
-        autoSubmitQuiz();
-      }
-    }, 1000);
-  }
-
-  function updateTimerDisplay() {
-    const minutes = Math.floor(timeLeft / 60);
-    const seconds = timeLeft % 60;
-    timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  }
-
-  // Auto Submit when Timer hits 0
-  function autoSubmitQuiz() {
-    alert("Time's up! Submitting your quiz now.");
-    // Auto-fill unanswered questions with -1 (unanswered/incorrect)
-    while (userAnswers.length < currentQuiz.questions.length) {
-      userAnswers.push(-1);
-    }
-    finishQuiz();
-  }
 
   // Render Current Question
   function renderQuestion() {
@@ -331,7 +300,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Finish Quiz and show Results Card
   function finishQuiz() {
-    clearInterval(timerInterval);
     
     // Calculate Score
     let correctCount = 0;
@@ -343,6 +311,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const totalQuestions = currentQuiz.questions.length;
     const scorePercent = Math.round((correctCount / totalQuestions) * 100);
+
+    // Save quiz result to localStorage
+    saveQuizResult(currentQuiz.id, correctCount, totalQuestions, scorePercent);
 
     // Update Results Content
     resultsQuizName.textContent = `You finished: ${currentQuiz.title}`;
@@ -452,17 +423,71 @@ document.addEventListener('DOMContentLoaded', () => {
   function confirmAndGoHome() {
     if (quizView.classList.contains('active') && !isAnswerSubmitted && currentQuestionIndex > 0) {
       if (confirm('Are you sure you want to quit the quiz? Your current progress will be lost.')) {
-        clearInterval(timerInterval);
         navigateToHome();
       }
     } else {
-      clearInterval(timerInterval);
       navigateToHome();
     }
   }
 
   function navigateToHome() {
     switchView('landing');
+  }
+
+  // Theme Management
+  function initializeTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (savedTheme) {
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    } else if (prefersDark) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+    
+    updateThemeIcon();
+  }
+
+  function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeIcon();
+  }
+
+  function updateThemeIcon() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const sunIcon = themeToggleBtn.querySelector('.sun-icon');
+    const moonIcon = themeToggleBtn.querySelector('.moon-icon');
+    
+    if (currentTheme === 'dark') {
+      sunIcon.style.display = 'block';
+      moonIcon.style.display = 'none';
+    } else {
+      sunIcon.style.display = 'none';
+      moonIcon.style.display = 'block';
+    }
+  }
+
+  // Quiz Results Management
+  function saveQuizResult(quizId, correctCount, totalQuestions, scorePercent) {
+    const results = JSON.parse(localStorage.getItem('quizResults') || '{}');
+    results[quizId] = {
+      correctCount,
+      totalQuestions,
+      scorePercent,
+      date: new Date().toISOString()
+    };
+    localStorage.setItem('quizResults', JSON.stringify(results));
+  }
+
+  function getQuizResult(quizId) {
+    const results = JSON.parse(localStorage.getItem('quizResults') || '{}');
+    return results[quizId] || null;
   }
 
   // Initialize
