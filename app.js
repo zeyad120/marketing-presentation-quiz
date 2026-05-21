@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
     landingView.classList.remove('active');
     quizView.classList.remove('active');
     resultsView.classList.remove('active');
-    
+
     // Reset heights/scroll positions
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -82,12 +82,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (view === 'landing') {
       landingView.classList.add('active');
       homeNavBtn.style.display = 'none';
+      document.body.classList.remove('showing-results');
     } else if (view === 'quiz') {
       quizView.classList.add('active');
       homeNavBtn.style.display = 'flex';
+      document.body.classList.remove('showing-results');
     } else if (view === 'results') {
       resultsView.classList.add('active');
-      homeNavBtn.style.display = 'flex';
+      homeNavBtn.style.display = 'none';
+      document.body.classList.add('showing-results');
     }
   }
 
@@ -200,11 +203,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Render question navigation list
     renderQuestionNavList();
 
+    // Check if this question was already answered
+    const alreadyAnswered = userAnswers[currentQuestionIndex] !== undefined;
+
     // Reset Next Button
     const isLastQuestion = currentQuestionIndex === currentQuiz.questions.length - 1;
     if (isLastQuestion) {
       nextQuestionBtn.innerHTML = `
-        View Results
+        Submit
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
       `;
     } else {
@@ -213,8 +219,53 @@ document.addEventListener('DOMContentLoaded', () => {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
       `;
     }
-    nextQuestionBtn.disabled = true;
-    isAnswerSubmitted = false;
+
+    if (alreadyAnswered) {
+      // Restore the answered state
+      isAnswerSubmitted = true;
+      nextQuestionBtn.disabled = false;
+      restoreAnsweredState();
+    } else {
+      nextQuestionBtn.disabled = true;
+      isAnswerSubmitted = false;
+    }
+  }
+
+  // Restore the state of an already answered question
+  function restoreAnsweredState() {
+    const question = currentQuiz.questions[currentQuestionIndex];
+    const selectedAnswerIndex = userAnswers[currentQuestionIndex];
+    const correctIndex = question.answer;
+
+    const optionBtns = optionsContainer.querySelectorAll('.option-button');
+
+    // Lock all buttons, style output
+    optionBtns.forEach((btn, index) => {
+      btn.classList.add('locked');
+
+      if (index === correctIndex) {
+        btn.className = 'option-button locked correct';
+        btn.querySelector('.option-icon').innerHTML = '✓';
+      } else if (index === selectedAnswerIndex) {
+        btn.className = 'option-button locked wrong';
+        btn.querySelector('.option-icon').innerHTML = '✗';
+      }
+    });
+
+    // Display Explanation Panel
+    const isCorrect = selectedAnswerIndex === correctIndex;
+    if (isCorrect) {
+      explanationStatusTitle.textContent = 'Correct!';
+      explanationPanel.style.borderLeftColor = 'var(--color-success)';
+      explanationStatusTitle.style.color = 'var(--color-success)';
+    } else {
+      explanationStatusTitle.textContent = 'Incorrect';
+      explanationPanel.style.borderLeftColor = 'var(--color-danger)';
+      explanationStatusTitle.style.color = 'var(--color-danger)';
+    }
+
+    explanationTextContent.textContent = question.explanation;
+    explanationPanel.classList.add('visible');
   }
 
   // Render Question Navigation List
@@ -227,9 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Check if this question has been answered
       if (userAnswers[index] !== undefined) {
-        const question = currentQuiz.questions[index];
-        const isCorrect = userAnswers[index] === question.answer;
-        navBtn.classList.add(isCorrect ? 'answered-correct' : 'answered-wrong');
+        navBtn.classList.add('answered');
       }
 
       // Highlight current question
@@ -326,7 +375,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Finish Quiz and show Results Card
   function finishQuiz() {
-    
+    console.log('finishQuiz called');
+
+    // Check if all questions are answered
+    const unansweredQuestions = currentQuiz.questions.filter((_, index) => userAnswers[index] === undefined);
+
+    if (unansweredQuestions.length > 0) {
+      if (!confirm(`You have ${unansweredQuestions.length} unanswered question(s). Do you want to finish the quiz anyway?`)) {
+        return;
+      }
+    }
+
     // Calculate Score
     let correctCount = 0;
     currentQuiz.questions.forEach((q, index) => {
@@ -336,7 +395,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const totalQuestions = currentQuiz.questions.length;
-    const scorePercent = Math.round((correctCount / totalQuestions) * 100);
+    const answeredCount = totalQuestions - unansweredQuestions.length;
+    const scorePercent = answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
+
+    console.log('Score calculated:', correctCount, '/', totalQuestions, '=', scorePercent + '%');
 
     // Save quiz result to localStorage
     saveQuizResult(currentQuiz.id, correctCount, totalQuestions, scorePercent);
@@ -363,15 +425,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Render Review Section
     renderReviewSection();
 
+    console.log('About to switch to results view');
+
     // Trigger Transition Views
     switchView('results');
+
+    console.log('Switched to results view');
 
     // Circular SVG Progress Ring Animation
     // Circumference = 2 * PI * r = 2 * 3.14159 * 70 = 439.8
     const circumference = 2 * Math.PI * 70;
     scoreCircleProgress.style.strokeDasharray = `${circumference}`;
     scoreCircleProgress.style.strokeDashoffset = `${circumference}`;
-    
+
     setTimeout(() => {
       const offset = circumference - (scorePercent / 100) * circumference;
       scoreCircleProgress.style.strokeDashoffset = offset;
