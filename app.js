@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const explanationTextContent = document.getElementById('explanation-text-content');
   const nextQuestionBtn = document.getElementById('next-question-btn');
   const quitQuizBtn = document.getElementById('quit-quiz-btn');
+  const questionNavList = document.getElementById('question-nav-list');
 
   // Results DOM Elements
   const resultsQuizName = document.getElementById('results-quiz-name');
@@ -167,11 +168,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Render Current Question
   function renderQuestion() {
     const question = currentQuiz.questions[currentQuestionIndex];
-    
+
     // Update progress numbers
     const totalQuestions = currentQuiz.questions.length;
     quizProgressText.textContent = `Question ${currentQuestionIndex + 1} of ${totalQuestions}`;
-    
+
     // Update progress bar
     const progressPercent = ((currentQuestionIndex + 1) / totalQuestions) * 100;
     quizProgressFill.style.width = `${progressPercent}%`;
@@ -182,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Render options
     optionsContainer.innerHTML = '';
     explanationPanel.classList.remove('visible');
-    
+
     question.options.forEach((option, index) => {
       const label = String.fromCharCode(65 + index); // A, B, C, D
       const optionBtn = document.createElement('button');
@@ -191,73 +192,15 @@ document.addEventListener('DOMContentLoaded', () => {
         <span><strong>${label}.</strong> ${option}</span>
         <div class="option-icon">${label}</div>
       `;
-      
+
       optionBtn.addEventListener('click', () => selectOption(index));
       optionsContainer.appendChild(optionBtn);
     });
 
-    // Reset Next/Submit Button
-    nextQuestionBtn.innerHTML = `
-      Submit Answer
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-    `;
-    nextQuestionBtn.disabled = true;
-    isAnswerSubmitted = false;
-  }
+    // Render question navigation list
+    renderQuestionNavList();
 
-  // Handle Option Selection (Before Submission)
-  function selectOption(index) {
-    if (isAnswerSubmitted) return;
-
-    // Remove active state from all options
-    const optionBtns = optionsContainer.querySelectorAll('.option-button');
-    optionBtns.forEach(btn => btn.classList.remove('selected'));
-
-    // Highlight selected
-    optionBtns[index].classList.add('selected');
-    
-    // Store temporarily in userAnswers
-    userAnswers[currentQuestionIndex] = index;
-    
-    // Enable submit action
-    nextQuestionBtn.disabled = false;
-  }
-
-  // Action flow for Footer button
-  function handleNextButton() {
-    if (!isAnswerSubmitted) {
-      submitAnswer();
-    } else {
-      advanceQuiz();
-    }
-  }
-
-  // Submit Answer Logic (Immediate Feedback Screen)
-  function submitAnswer() {
-    isAnswerSubmitted = true;
-    const question = currentQuiz.questions[currentQuestionIndex];
-    const selectedAnswerIndex = userAnswers[currentQuestionIndex];
-    const correctIndex = question.answer;
-
-    const optionBtns = optionsContainer.querySelectorAll('.option-button');
-    
-    // Lock all buttons, style output
-    optionBtns.forEach((btn, index) => {
-      btn.classList.add('locked');
-      
-      if (index === correctIndex) {
-        btn.className = 'option-button locked correct';
-        btn.querySelector('.option-icon').innerHTML = '✓';
-      } else if (index === selectedAnswerIndex) {
-        btn.className = 'option-button locked wrong';
-        btn.querySelector('.option-icon').innerHTML = '✗';
-      } else {
-        // Clear selected classes of non-chosen options
-        btn.classList.remove('selected');
-      }
-    });
-
-    // Update Action Button
+    // Reset Next Button
     const isLastQuestion = currentQuestionIndex === currentQuiz.questions.length - 1;
     if (isLastQuestion) {
       nextQuestionBtn.innerHTML = `
@@ -270,6 +213,83 @@ document.addEventListener('DOMContentLoaded', () => {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
       `;
     }
+    nextQuestionBtn.disabled = true;
+    isAnswerSubmitted = false;
+  }
+
+  // Render Question Navigation List
+  function renderQuestionNavList() {
+    questionNavList.innerHTML = '';
+    currentQuiz.questions.forEach((_, index) => {
+      const navBtn = document.createElement('button');
+      navBtn.className = 'question-nav-btn';
+      navBtn.textContent = index + 1;
+
+      // Check if this question has been answered
+      if (userAnswers[index] !== undefined) {
+        const question = currentQuiz.questions[index];
+        const isCorrect = userAnswers[index] === question.answer;
+        navBtn.classList.add(isCorrect ? 'answered-correct' : 'answered-wrong');
+      }
+
+      // Highlight current question
+      if (index === currentQuestionIndex) {
+        navBtn.classList.add('active');
+      }
+
+      navBtn.addEventListener('click', () => jumpToQuestion(index));
+      questionNavList.appendChild(navBtn);
+    });
+  }
+
+  // Handle Option Selection (Auto-submit on click)
+  function selectOption(index) {
+    if (isAnswerSubmitted) return;
+
+    // Store the answer
+    userAnswers[currentQuestionIndex] = index;
+
+    // Immediately submit and show feedback
+    submitAnswer();
+  }
+
+  // Action flow for Footer button
+  function handleNextButton() {
+    if (isAnswerSubmitted) {
+      advanceQuiz();
+    }
+  }
+
+  // Submit Answer Logic (Immediate Feedback Screen)
+  function submitAnswer() {
+    isAnswerSubmitted = true;
+    const question = currentQuiz.questions[currentQuestionIndex];
+    const selectedAnswerIndex = userAnswers[currentQuestionIndex];
+    const correctIndex = question.answer;
+
+    const optionBtns = optionsContainer.querySelectorAll('.option-button');
+
+    // Lock all buttons, style output
+    optionBtns.forEach((btn, index) => {
+      btn.classList.add('locked');
+
+      if (index === correctIndex) {
+        btn.className = 'option-button locked correct';
+        btn.querySelector('.option-icon').innerHTML = '✓';
+      } else if (index === selectedAnswerIndex) {
+        btn.className = 'option-button locked wrong';
+        btn.querySelector('.option-icon').innerHTML = '✗';
+      } else {
+        // Clear selected classes of non-chosen options
+        btn.classList.remove('selected');
+      }
+    });
+
+    // Enable Next Button
+    nextQuestionBtn.disabled = false;
+
+    // Update navigation list to show answer status
+    renderQuestionNavList();
 
     // Display Explanation Panel
     const isCorrect = selectedAnswerIndex === correctIndex;
@@ -282,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
       explanationPanel.style.borderLeftColor = 'var(--color-danger)';
       explanationStatusTitle.style.color = 'var(--color-danger)';
     }
-    
+
     explanationTextContent.textContent = question.explanation;
     explanationPanel.classList.add('visible');
   }
@@ -296,6 +316,12 @@ document.addEventListener('DOMContentLoaded', () => {
       currentQuestionIndex++;
       renderQuestion();
     }
+  }
+
+  // Jump to a specific question
+  function jumpToQuestion(index) {
+    currentQuestionIndex = index;
+    renderQuestion();
   }
 
   // Finish Quiz and show Results Card

@@ -587,6 +587,93 @@ header {
   border-color: var(--color-danger-border);
 }
 
+/* Question Navigation List */
+.question-nav-container {
+  padding: 20px 32px;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(15, 23, 42, 0.3);
+}
+
+:root[data-theme="light"] .question-nav-container {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.question-nav-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.question-nav-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.question-nav-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.question-nav-btn:hover:not(.active) {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: var(--color-indigo);
+  color: var(--color-indigo);
+}
+
+.question-nav-btn.active {
+  background: var(--color-indigo);
+  border-color: var(--color-indigo);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+}
+
+.question-nav-btn.answered-correct {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.question-nav-btn.answered-correct:hover {
+  background: var(--color-success-bg);
+}
+
+.question-nav-btn.answered-wrong {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.question-nav-btn.answered-wrong:hover {
+  background: var(--color-danger-bg);
+}
+
+.question-nav-btn.active.answered-correct {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+}
+
+.question-nav-btn.active.answered-wrong {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+}
+
 /* Progress bar container */
 .progress-bar-container {
   height: 6px;
